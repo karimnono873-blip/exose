@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Solution TD Temps Réel</title>
+    <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <script>
+        window.MathJax = {
+          tex: { inlineMath: [['$', '$'], ['\\(', '\\)']] }
+        };
+    </script>
+    <style>
+        /* Styles généraux et reset */
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background-color: #f8f9fa;
+            margin: 0;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: #fff;
+            padding: 40px;
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+        h1 {
+            text-align: center;
+            color: #2c3e50;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 10px;
+        }
+        h2 {
+            color: #2980b9;
+            margin-top: 40px;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 5px;
+        }
+        h3 { color: #8e44ad; }
+        
+        /* Styles pour les tableaux */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 12px;
+            text-align: center;
+        }
+        th {
+            background-color: #34495e;
+            color: white;
+        }
+        tr:nth-child(even) { background-color: #f2f2f2; }
+
+        /* Explications et boîtes de calculs */
+        .explanation {
+            background-color: #e8f4f8;
+            border-left: 5px solid #3498db;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 4px;
+        }
+        .conclusion {
+            background-color: #eef7ee;
+            border-left: 5px solid #27ae60;
+            padding: 15px;
+            margin: 20px 0;
+            font-weight: bold;
+        }
+        .warning {
+            background-color: #fdf3e7;
+            border-left: 5px solid #e67e22;
+            padding: 15px;
+            margin: 20px 0;
+        }
+
+        /* Styles pour les Diagrammes de Gantt */
+        .gantt-wrapper {
+            margin: 30px 0;
+            overflow-x: auto;
+        }
+        .gantt-chart {
+            display: flex;
+            flex-direction: column;
+            min-width: 800px;
+            border: 1px solid #ccc;
+            background: #fafafa;
+        }
+        .gantt-row {
+            display: flex;
+            border-bottom: 1px solid #eee;
+            height: 40px;
+        }
+        .gantt-row-label {
+            width: 80px;
+            background: #2c3e50;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            flex-shrink: 0;
+        }
+        .gantt-timeline {
+            display: flex;
+            flex-grow: 1;
+            position: relative;
+        }
+        .gantt-tick {
+            flex: 1;
+            border-right: 1px dashed #ddd;
+            box-sizing: border-box;
+        }
+        /* Tâches spécifiques pour les couleurs */
+        .task-block {
+            position: absolute;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 0.85em;
+            font-weight: bold;
+            box-shadow: inset 0 0 0 1px rgba(0,0,0,0.2);
+        }
+        .t1 { background-color: #e74c3c; } /* Rouge */
+        .t2 { background-color: #3498db; } /* Bleu */
+        .t3 { background-color: #2ecc71; } /* Vert */
+        .t4 { background-color: #f1c40f; color: #333; } /* Jaune */
+        .t5 { background-color: #9b59b6; } /* Violet */
+
+        /* Axes du temps */
+        .time-axis {
+            display: flex;
+            height: 25px;
+            border-top: 2px solid #333;
+        }
+        .time-label {
+            flex: 1;
+            text-align: left;
+            font-size: 0.75em;
+            padding-left: 2px;
+            color: #555;
+            border-left: 1px solid #333;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>Résolution Détaillée - Série 03 : Ordonnancement Temps Réel</h1>
+    <p>Ce document présente la résolution étape par étape des exercices de la Série 03[cite: 1]. Les notations classiques sont utilisées : C (temps d'exécution), P (période), D (échéance/deadline), N (nombre de tâches)[cite: 2].</p>
+
+    <section id="exercice-1">
+        <h2>Exercice 1 : RM et Critère de Liu & Layland</h2>
+        <p>Jeu de tâches considéré (avec Période = Échéance)[cite: 6]:</p>
+        <table>
+            <tr><th>Tâche</th><th>Période (P)</th><th>Temps d'exécution (C)</th></tr>
+            <tr><td>T1</td><td>50</td><td>10</td></tr>
+            <tr><td>T2</td><td>40</td><td>10</td></tr>
+            <tr><td>T3</td><td>30</td><td>15</td></tr>
+        </table>
+
+        <h3>1. Critère de Liu et Layland</h3>
+        <div class="explanation">
+            <p>Le critère de Liu et Layland stipule qu'un jeu de N tâches est ordonnançable par RM si son facteur d'utilisation U vérifie[cite: 4, 5]:</p>
+            <p>$$ \sum_{i=1}^{N}\frac{C_{i}}{T_{i}}\le N(2^{1/N}-1) $$</p>
+            <p><strong>Calcul de l'utilisation du processeur (U) :</strong></p>
+            <p>$$ U = \frac{10}{50} + \frac{10}{40} + \frac{15}{30} = 0.20 + 0.25 + 0.50 = 0.95 $$ [cite: 7]</p>
+            <p><strong>Calcul de la borne pour N=3 :</strong></p>
+            <p>$$ 3(2^{1/3}-1) \approx 0.779 $$ [cite: 5]</p>
+        </div>
+        <div class="conclusion">
+            <strong>Conclusion :</strong> Puisque $0.95 > 0.779$, le critère de Liu et Layland n'est pas respecté[cite: 8]. Cependant, ce test est une condition <em>suffisante</em> mais non <em>nécessaire</em>. Son échec ne signifie pas que le système n'est pas ordonnançable, il faut le vérifier avec un diagramme de Gantt[cite: 9, 10].
+        </div>
+
+        <h3>2. Diagramme de Gantt (Ordonnancement RM)</h3>
+        <p>En Rate Monotonic (RM), la priorité est inversement proportionnelle à la période. Plus la période est courte, plus la priorité est haute[cite: 4].<br>
+        <strong>Priorités : T3 (P=30) > T2 (P=40) > T1 (P=50)</strong>[cite: 7].</p>
+        
+        <div class="gantt-wrapper">
+            <div class="gantt-chart">
+                <div class="gantt-row">
+                    <div class="gantt-row-label">Tâche 3</div>
+                    <div class="gantt-timeline">
+                        <div class="task-block t3" style="left: 0%; width: 30%;">[0-15]</div>
+                        <div class="task-block t3" style="left: 60%; width: 30%;">[30-45]</div>
+                    </div>
+                </div>
+                <div class="gantt-row">
+                    <div class="gantt-row-label">Tâche 2</div>
+                    <div class="gantt-timeline">
+                        <div class="task-block t2" style="left: 30%; width: 20%;">[15-25]</div>
+                    </div>
+                </div>
+                <div class="gantt-row">
+                    <div class="gantt-row-label">Tâche 1</div>
+                    <div class="gantt-timeline">
+                        <div class="task-block t1" style="left: 50%; width: 10%;">[25-30]</div>
+                        <div class="task-block t1" style="left: 90%; width: 10%;">[45-50]</div>
+                    </div>
+                </div>
+                <div class="time-axis">
+                    <div class="time-label" style="flex: 0 0 10%;">0</div>
+                    <div class="time-label" style="flex: 0 0 10%;">5</div>
+                    <div class="time-label" style="flex: 0 0 10%;">10</div>
+                    <div class="time-label" style="flex: 0 0 10%;">15</div>
+                    <div class="time-label" style="flex: 0 0 10%;">20</div>
+                    <div class="time-label" style="flex: 0 0 10%;">25</div>
+                    <div class="time-label" style="flex: 0 0 10%;">30</div>
+                    <div class="time-label" style="flex: 0 0 10%;">35</div>
+                    <div class="time-label" style="flex: 0 0 10%;">40</div>
+                    <div class="time-label" style="flex: 0 0 10%;">45</div>
+                    <div class="time-label" style="position: absolute; right: 0;">50</div>
+                </div>
+            </div>
+        </div>
+        <div class="conclusion">Toutes les tâches s'exécutent dans leurs périodes respectives. Le système est donc faisable avec RM malgré l'échec du test de Liu & Layland[cite: 10].</div>
+    </section>
+
+    <hr>
+
+    <section id="exercice-2">
+        <h2>Exercice 2 : RM et EDF</h2>
+        <p>Jeu de tâches considéré[cite: 12]:</p>
+        <table>
+            <tr><th>Tâche</th><th>Période (P)</th><th>Exécution (C)</th><th>Échéance (D)</th></tr>
+            <tr><td>T1</td><td>9</td><td>3</td><td>9</td></tr>
+            <tr><td>T2</td><td>18</td><td>5</td><td>18</td></tr>
+            <tr><td>T3</td><td>12</td><td>4</td><td>12</td></tr>
+        </table>
+
+        <h3>1. Trace d'exécution RM (18 premières périodes)</h3>
+        <p>Priorités RM (Périodes courtes) : <strong>T1 (9) > T3 (12) > T2 (18)</strong>[cite: 12, 13].</p>
+        <ul>
+            <li><strong>t=0:</strong> T1 s'exécute (3 unités). Finit à t=3.</li>
+            <li><strong>t=3:</strong> T3 s'exécute (4 unités). Finit à t=7.</li>
+            <li><strong>t=7:</strong> T2 commence, s'exécute pour 2 unités. Finit à t=9.</li>
+            <li><strong>t=9:</strong> Arrivée de T1. T1 préempte T2. T1 s'exécute (3 unités). Finit à t=12.</li>
+            <li><strong>t=12:</strong> Arrivée de T3. T3 s'exécute (4 unités). Finit à t=16.</li>
+            <li><strong>t=16:</strong> Reprise de T2. S'exécute pour 2 unités. Finit à t=18.</li>
+            <li><strong>t=18:</strong> Échéance de T2 ! T2 devait exécuter 5 unités, mais n'en a eu que 4 (2 entre 7-9, et 2 entre 16-18)[cite: 12, 13].</li>
+        </ul>
+        <div class="warning"><strong>Conclusion :</strong> RM ne respecte pas les contraintes, donc ne permet pas un ordonnancement faisable[cite: 13]. T2 manque son échéance à t=18.</div>
+
+        <h3>2. Trace d'exécution EDF (36 premières périodes)</h3>
+        <p>En EDF (Earliest Deadline First), la priorité est donnée à la tâche dont l'échéance absolue est la plus proche[cite: 14].</p>
+        <ul>
+            <li><strong>[0-3] :</strong> T1 s'exécute (D=9).</li>
+            <li><strong>[3-7] :</strong> T3 s'exécute (D=12).</li>
+            <li><strong>[7-9] :</strong> T2 s'exécute (2 unités) (D=18).</li>
+            <li><strong>[9-12] :</strong> T1(D=18) et T2(D=18). Supposons T1 prioritaire. T1 termine.</li>
+            <li><strong>[12-15] :</strong> T2(D=18) est prioritaire sur T3(D=24). T2 exécute 3 unités et termine.</li>
+            <li><strong>[15-18] :</strong> T3 s'exécute (3 unités).</li>
+            <li><strong>[18-19] :</strong> T3(D=24) prioritaire sur T1(D=27). T3 termine (1 unité).</li>
+            <li><strong>[19-22] :</strong> T1 s'exécute et termine.</li>
+            <li><strong>[22-24] :</strong> T2 s'exécute (2 unités).</li>
+            <li><strong>[24-27] :</strong> T2(D=36) et T3(D=36). On termine T2 (3 unités).</li>
+            <li><strong>[27-30] :</strong> T1 s'exécute et termine (D=36).</li>
+            <li><strong>[30-34] :</strong> T3 s'exécute et termine.</li>
+            <li><strong>[34-36] :</strong> CPU inactif.</li>
+        </ul>
+        <div class="conclusion">L'algorithme EDF est valide car toutes les échéances sont respectées jusqu'au PPCM (36)[cite: 14].</div>
+
+        <h3>3. Pourcentage d'utilisation du CPU</h3>
+        <div class="explanation">
+            <p>$$ U = \sum \frac{C_i}{T_i} = \frac{3}{9} + \frac{5}{18} + \frac{4}{12} $$ [cite: 12, 15]</p>
+            <p>En mettant au même dénominateur (36) :</p>
+            <p>$$ U = \frac{12}{36} + \frac{10}{36} + \frac{12}{36} = \frac{34}{36} = \frac{17}{18} \approx 0.9444 $$ [cite: 15]</p>
+            <p>Le taux d'utilisation du CPU est donc de <strong>94.44%</strong>[cite: 15].</p>
+        </div>
+    </section>
+
+    <hr>
+
+    <section id="exercice-3">
+        <h2>Exercice 3 : RM, EDF et LLF</h2>
+        <p>Trois tâches [cite: 17] : T1(C=1, D=P=3) [cite: 18], T2(C=1, D=P=4) [cite: 20], T3(C=2, D=P=6)[cite: 21].</p>
+
+        <h3>Facteur d'utilisation du processeur (U)</h3>
+        <div class="explanation">
+            <p>$$ U = \frac{1}{3} + \frac{1}{4} + \frac{2}{6} = \frac{4}{12} + \frac{3}{12} + \frac{4}{12} = \frac{11}{12} \approx 0.916 $$ [cite: 18, 20, 21, 23]</p>
+            <p><strong>Conclusion :</strong> $U > 0.78$ (la borne RM pour N=3 est $3(2^{1/3}-1) = 0.78$)[cite: 23, 24]. Le test de Liu & Layland échoue pour RM. Cependant, comme $U \le 1$, le système est ordonnançable à 100% par des algorithmes optimaux comme EDF et LLF[cite: 23].</p>
+        </div>
+
+        <h3>Schéma de séquencement sur le PPCM (12)</h3>
+        <div class="gantt-wrapper">
+            <h4>Diagramme pour RM (Priorités : T1 > T2 > T3)</h4>
+            <div class="gantt-chart">
+                <div class="gantt-row">
+                    <div class="gantt-row-label">T1</div>
+                    <div class="gantt-timeline">
+                        <div class="task-block t1" style="left: 0%; width: 8.33%;">[0-1]</div>
+                        <div class="task-block t1" style="left: 25%; width: 8.33%;">[3-4]</div>
+                        <div class="task-block t1" style="left: 50%; width: 8.33%;">[6-7]</div>
+                        <div class="task-block t1" style="left: 75%; width: 8.33%;">[9-10]</div>
+                    </div>
+                </div>
+                <div class="gantt-row">
+                    <div class="gantt-row-label">T2</div>
+                    <div class="gantt-timeline">
+                        <div class="task-block t2" style="left: 8.33%; width: 8.33%;">[1-2]</div>
+                        <div class="task-block t2" style="left: 33.33%; width: 8.33%;">[4-5]</div>
+                        <div class="task-block t2" style="left: 66.66%; width: 8.33%;">[8-9]</div>
+                    </div>
+                </div>
+                <div class="gantt-row">
+                    <div class="gantt-row-label">T3</div>
+                    <div class="gantt-timeline">
+                        <div class="task-block t3" style="left: 16.66%; width: 8.33%;">[2-3]</div>
+                        <div class="task-block t3" style="left: 41.66%; width: 8.33%;">[5-6]</div>
+                        <div class="task-block t3" style="left: 58.33%; width: 8.33%;">[7-8]</div>
+                        <div class="task-block t3" style="left: 83.33%; width: 8.33%;">[10-11]</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <p><strong>Commentaire :</strong> Malgré l'échec du test d'utilisation, RM est capable d'ordonnancer ce jeu de tâches. L'intervalle [11-12] reste inactif[cite: 24]. EDF et LLF généreront des ordonnancements légèrement différents mais tout aussi valides (LLF favorisant la tâche ayant la moindre laxité dynamique)[cite: 22, 24].</p>
+    </section>
+
+    <hr>
+
+    <section id="exercice-4">
+        <h2>Exercice 4 : Systèmes avec D < P</h2>
+        <p>Système de 3 tâches[cite: 26, 27]:</p>
+        <table>
+            <tr><th>Tâche</th><th>Période (P)</th><th>Exécution (C)</th><th>Échéance (D)</th></tr>
+            <tr><td>1</td><td>20</td><td>3</td><td>15</td></tr>
+            <tr><td>2</td><td>80</td><td>40</td><td>60</td></tr>
+            <tr><td>3</td><td>40</td><td>10</td><td>35</td></tr>
+        </table>
+        
+        <div class="explanation">
+            <p><strong>Facteur d'utilisation global :</strong><br>
+            $U = 3/20 + 40/80 + 10/40 = 0.15 + 0.50 + 0.25 = 0.90$</p>
+        </div>
+
+        <h3>1/ Ordonnancement RMA</h3>
+        <p><strong>a) Priorités :</strong> T1 (P=20) > T3 (P=40) > T2 (P=80)[cite: 28, 29].<br>
+        <strong>b) Test U :</strong> $U = 0.90 > 0.78$. Le test RMA basé sur l'utilisation n'est pas applicable ou garanti car D &lt; P et $U$ dépasse le seuil[cite: 30].<br>
+        <strong>c) Diagramme :</strong> T2 subit trop de préemptions par T1 et T3. À l'instant t=60 (son échéance), T2 n'a pas eu le temps d'exécuter ses 40 unités de calcul. Les échéances ne sont pas respectées[cite: 31].</p>
+
+        <h3>2/ Ordonnancement DMA (Deadline Monotonic)</h3>
+        <p><strong>a) Priorités :</strong> Basées sur les échéances (D). D1(15) &lt; D3(35) &lt; D2(60). Ordre : T1 > T3 > T2[cite: 32, 33].<br>
+        <strong>b) Test U :</strong> Le test classique $\sum (Ci/Di) \le 1$ donne $3/15 + 40/60 + 10/35 = 0.2 + 0.66 + 0.28 = 1.14 > 1$. Le test échoue[cite: 34].<br>
+        <strong>c) Diagramme :</strong> L'ordre de priorité est le même que RMA. Par conséquent, T2 manque toujours son échéance à t=60[cite: 35].</p>
+
+        <h3>3/ Ordonnancement EDF</h3>
+        <p><strong>a) Test U :</strong> $U = 0.90 \le 1$. Le test est positif, indiquant que le processeur a la capacité brute de tout traiter, mais comme D &lt; P, il faut utiliser la fonction de demande (Processor Demand) pour certifier mathématiquement[cite: 36, 37].<br>
+        <strong>b) Diagramme :</strong> EDF réévalue la priorité à chaque libération. T2 parvient à terminer juste avant son échéance (t=59) car, à un instant donné (vers t=40), son échéance absolue devient plus urgente que la nouvelle instance de T3. Les échéances sont respectées[cite: 38].</p>
+    </section>
+
+    <hr>
+
+    <section id="exercice-6">
+        <h2>Exercice 6 : Ordonnancement OS (FCFS, RR, SJF)</h2>
+        <p>Durées d'exécution [cite: 44] : P1=10, P2=1, P3=2, P4=1, P5=5[cite: 45].</p>
+
+        <h3>1. Tous les processus arrivent à t=0 [cite: 46]</h3>
+        
+        <h4>Algorithme FCFS [cite: 48]</h4>
+        <div class="gantt-wrapper">
+            <div class="gantt-chart" style="flex-direction: row; height: 50px;">
+                <div class="task-block t1" style="position: relative; width: 52.6%;">P1 (0-10)</div>
+                <div class="task-block t2" style="position: relative; width: 5.2%;">P2 (10-11)</div>
+                <div class="task-block t3" style="position: relative; width: 10.5%;">P3 (11-13)</div>
+                <div class="task-block t4" style="position: relative; width: 5.2%;">P4 (13-14)</div>
+                <div class="task-block t5" style="position: relative; width: 26.3%;">P5 (14-19)</div>
+            </div>
+        </div>
+
+        <h4>Round Robin (q=2) [cite: 49]</h4>
+        <div class="gantt-wrapper">
+            <div class="gantt-chart" style="flex-direction: row; height: 50px;">
+                <div class="task-block t1" style="position: relative; flex: 2;">P1</div>
+                <div class="task-block t2" style="position: relative; flex: 1;">P2</div>
+                <div class="task-block t3" style="position: relative; flex: 2;">P3</div>
+                <div class="task-block t4" style="position: relative; flex: 1;">P4</div>
+                <div class="task-block t5" style="position: relative; flex: 2;">P5</div>
+                <div class="task-block t1" style="position: relative; flex: 2;">P1</div>
+                <div class="task-block t5" style="position: relative; flex: 2;">P5</div>
+                <div class="task-block t1" style="position: relative; flex: 2;">P1</div>
+                <div class="task-block t5" style="position: relative; flex: 1;">P5</div>
+                <div class="task-block t1" style="position: relative; flex: 4;">P1</div>
+            </div>
+        </div>
+
+        <h3>2. Instants d'arrivée différents et algorithme SRTF (SJF Préemptif)</h3>
+        <p>Arrivées : t(P1)=0 [cite: 51], t(P2)=1 [cite: 51], t(P3)=2 [cite: 51], t(P4)=3 [cite: 51], t(P5)=4[cite: 52]. SRTF sélectionne le temps restant le plus court[cite: 53].</p>
+        <ul>
+            <li><strong>t=0 :</strong> P1 commence.</li>
+            <li><strong>t=1 :</strong> P2 arrive (C=1). P1 restant (9). P2 préempte et termine à t=2.</li>
+            <li><strong>t=2 :</strong> P3 arrive (C=2). P1(9). P3 préempte et s'exécute.</li>
+            <li><strong>t=3 :</strong> P4 arrive (C=1). P3 restant (1). Égalité, on laisse P3 finir à t=4.</li>
+            <li><strong>t=4 :</strong> P5 arrive (C=5). P4 s'exécute (1) et termine à t=5.</li>
+            <li><strong>t=5 :</strong> P5(5) < P1(9). P5 s'exécute et termine à t=10.</li>
+            <li><strong>t=10 :</strong> P1 reprend ses 9 unités et termine à t=19.</li>
+        </ul>
+
+        <h3>3 & 4. Temps de Rotation (TAT) et d'Attente (WT) pour SRTF [cite: 54, 55]</h3>
+        <p>$TAT = Fin - Arrivée$ | $WT = TAT - Exécution$</p>
+        <table>
+            <tr><th>Processus</th><th>Fin</th><th>Arrivée</th><th>TAT (Rotation)</th><th>Exécution</th><th>WT (Attente)</th></tr>
+            <tr><td>P1</td><td>19</td><td>0</td><td>19</td><td>10</td><td>9</td></tr>
+            <tr><td>P2</td><td>2</td><td>1</td><td>1</td><td>1</td><td>0</td></tr>
+            <tr><td>P3</td><td>4</td><td>2</td><td>2</td><td>2</td><td>0</td></tr>
+            <tr><td>P4</td><td>5</td><td>3</td><td>2</td><td>1</td><td>1</td></tr>
+            <tr><td>P5</td><td>10</td><td>4</td><td>6</td><td>5</td><td>1</td></tr>
+            <tr style="font-weight: bold; background-color: #dff0d8;">
+                <td colspan="3">Moyennes</td><td>30 / 5 = 6.0</td><td>-</td><td>11 / 5 = 2.2</td>
+            </tr>
+        </table>
+    </section>
+
+</div>
+
+</body>
+</html>
